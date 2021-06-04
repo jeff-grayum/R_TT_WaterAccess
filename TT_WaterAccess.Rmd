@@ -1,0 +1,105 @@
+---
+title: "TT_WaterAccess"
+author: "Jeff Grayum"
+date: "6/4/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Loading libraries       
+```{r}
+library(tidyverse)
+library(tidytuesdayR)
+library(scales)
+library(ggthemes)
+library(lubridate)
+```
+
+Loading dataset
+```{r}
+tuesdata <- tidytuesdayR::tt_load(2021, week = 19)
+
+#cleaning the date format, and renaming
+water <- tuesdata$water %>%
+  mutate(report_date = mdy(report_date)) %>%
+  rename(lat = lat_deg,
+         lon = lon_deg,
+         country = country_name) %>%
+  separate(water_tech, c("water_tech", "brand"), sep = " - ",
+           fill = "right") %>%
+  mutate(install_year = ifelse(install_year > 2021, NA_real_, install_year)) %>%
+  filter(!country %in% c("Peru"))
+
+water %>%
+  view()
+
+water %>%
+  filter(!is.na(water_source)) %>%
+  count(water_source, sort = TRUE) %>%
+  head(10) %>%
+  mutate(water_source = fct_reorder(water_source, n)) %>%
+  ggplot(aes(n, water_source)) +
+  geom_col() +
+  labs(title = "Most common water sources",
+       x = "",
+       y = "Water source") +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        text = element_text(family = "Times New Roman"))
+
+water %>%
+  count(status_id, sort = TRUE)
+
+water %>%
+  count(water_source, sort = TRUE)
+
+water %>%
+  count(water_tech, sort = TRUE)
+
+water %>%
+  count(brand, sort = TRUE)
+
+water %>%
+  filter(!is.na(water_tech),
+         !is.na(brand)) %>%
+  count(water_tech, brand, sort = TRUE)
+
+water %>%
+  filter(install_year > 1980) %>%
+  count(install_year) %>%
+  ggplot(aes(install_year, n)) +
+  geom_col() +
+  theme_fivethirtyeight() +
+  labs(x = "Year of installation",
+       y = "",
+       title = "Water source technology installation year") +
+  theme(axis.title = element_text(),
+        text = element_text(family = "Times New Roman"))
+
+water %>%
+  count(country, sort = TRUE) %>%
+  view()
+
+water %>%
+  count(installer, sort = TRUE)
+
+water %>%
+  count(status, sort = TRUE)
+
+water %>%
+  count(status_id, sort = TRUE)
+
+water %>%
+  count(status_id, status, sort = TRUE)
+```
+
+Next, we will make a map!!  But first, breakfast and moving cabins...
+```{r}
+
+```
+
