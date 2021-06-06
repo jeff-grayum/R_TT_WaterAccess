@@ -19,6 +19,8 @@ library(scales)
 library(ggthemes)
 library(lubridate)
 library(countrycode)
+#install.packages("ggmap")
+library(ggmap)
 ```
 
 Loading dataset
@@ -156,15 +158,36 @@ water %>%
 
 #We'll start with Uganda, since we have the most data there.
 
-water %>%
+#Removing theme_map allows us to see lat/lon and adjust filter!
+water_uganda <- water %>%
   filter(country == "Uganda",
          between(lat, -2, 4),
-         between(lon, 29.4, 40)) %>%
+         between(lon, 29.4, 35))
+
+water_uganda %>%
   ggplot(aes(lon, lat)) + 
   borders("world", regions = "Uganda") +
   geom_point(size = 0.1, alpha = 0.25) +
- # theme_map() +
+  theme_map() +
   theme(legend.position = "none")
+
+water_uganda %>%
+  ggplot(aes(lon, lat, color = status_id)) + 
+  borders("world", regions = "Uganda") +
+  geom_point(size = 0.1, alpha = 0.25) +
+  theme_map() +
+  scale_color_discrete(guide = guide_legend(override.aes = list(size = 2, alpha = 1))) +
+  theme(legend.position = "right") +
+  labs(color = "Status",
+       title = "Uganda's water sources")
+
+ #Let's add terrain (lakes, mountains, etc) with ggmap!
+#OK we're not going to do this because it requires an API key!
+#When we google a map of Uganda, it shows the bottom right of the country is Lake Victoria --> hence the missing data there.
+
+
+
+
 
 ```
 
