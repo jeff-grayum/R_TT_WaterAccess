@@ -18,6 +18,7 @@ library(tidytuesdayR)
 library(scales)
 library(ggthemes)
 library(lubridate)
+library(countrycode)
 ```
 
 Loading dataset
@@ -33,7 +34,10 @@ water <- tuesdata$water %>%
   separate(water_tech, c("water_tech", "brand"), sep = " - ",
            fill = "right") %>%
   mutate(install_year = ifelse(install_year > 2021, NA_real_, install_year)) %>%
-  filter(!country %in% c("Peru"))
+  filter(!country %in% c("Peru", "Dominican Republic"),
+         !is.na(country)) %>%
+  filter(between(lat, -35, 37),
+         between(lon, -40, 60))
 
 water %>%
   view()
@@ -100,6 +104,67 @@ water %>%
 
 Next, we will make a map!!  But first, breakfast and moving cabins...
 ```{r}
+countries = unique(water$country)
+
+#try running just the firt two lines!
+africa_map_data <- map_data("world") %>%
+  as_tibble() %>%
+  mutate(continent = countrycode(region, "country.name", "continent")) %>%
+  filter(continent == "Africa") 
+
+#First way to make map, using borders
+water %>%
+  filter(!is.na(country), 
+         country != "Timor-Leste") %>%
+  slice_sample(n = 10000) %>%
+  ggplot(aes(lon, lat)) + 
+  borders("world", regions = countries) +
+  geom_point()
+
+#Second, more controled way to make map (using geom_polygon)
+water %>%
+  filter(!is.na(country), 
+         country != "Timor-Leste") %>%
+  slice_sample(n = 10000) %>%
+  ggplot(aes(lon, lat)) + 
+  geom_polygon(aes(long, lat, group = group), 
+               color = "black",
+               fill = "white",
+               size = 0.25,
+               data = africa_map_data) +
+  geom_point(size = 0.1, alpha = 0.25) +
+  theme_map() +
+  theme(legend.position = "none")
+
+
+
+water %>%
+  filter(country != "Timor-Leste") %>%
+  group_by(country) %>%
+  summarize(lat = mean(lat),
+            lon = mean(lon)) %>%
+  ggplot(aes(lon, lat)) +
+  geom_point() +
+  geom_text(aes(label = country, vjust = 1, hjust = 1))
+
+```
+
+Let's start looking at individual countries
+```{r}
+water %>%
+  count(country, sort = TRUE)
+
+#We'll start with Uganda, since we have the most data there.
+
+water %>%
+  filter(country == "Uganda",
+         between(lat, -2, 4),
+         between(lon, 29.4, 40)) %>%
+  ggplot(aes(lon, lat)) + 
+  borders("world", regions = "Uganda") +
+  geom_point(size = 0.1, alpha = 0.25) +
+ # theme_map() +
+  theme(legend.position = "none")
 
 ```
 
