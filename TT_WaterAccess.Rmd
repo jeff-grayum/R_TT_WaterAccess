@@ -185,9 +185,22 @@ water_uganda %>%
 #OK we're not going to do this because it requires an API key!
 #When we google a map of Uganda, it shows the bottom right of the country is Lake Victoria --> hence the missing data there.
 
+bbox <- c(left = 29.2, bottom = -2, right = 35, top = 4)
 
 
+uganda_map <- get_stamenmap(bbox, zoom = 8)
 
+water_uganda %>%
+  count(water_source, sort = TRUE)
 
+water_uganda_lumped2 <- water_uganda %>%
+  mutate(water_source = fct_lump(water_source, 5)) %>%
+  replace_na(list(water_source = "Other")) %>%
+  view()
+
+ggmap(uganda_map) +
+  geom_point(aes(lon, lat), 
+             data = water_uganda_lumped2, size = 0.1, alpha = 0.1) +
+  facet_wrap(~ water_source)
 ```
 
