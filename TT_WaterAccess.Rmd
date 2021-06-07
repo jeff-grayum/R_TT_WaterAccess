@@ -21,6 +21,7 @@ library(lubridate)
 library(countrycode)
 #install.packages("ggmap")
 library(ggmap)
+library(gganimate)
 ```
 
 Loading dataset
@@ -182,25 +183,138 @@ water_uganda %>%
        title = "Uganda's water sources")
 
  #Let's add terrain (lakes, mountains, etc) with ggmap!
-#OK we're not going to do this because it requires an API key!
+#OK we're not going to do this because it requires an API key!  Ok wait, we are!
 #When we google a map of Uganda, it shows the bottom right of the country is Lake Victoria --> hence the missing data there.
 
+#Start by making a "box", using lon and lat as borders
 bbox <- c(left = 29.2, bottom = -2, right = 35, top = 4)
 
-
+#zoom controls resolution
 uganda_map <- get_stamenmap(bbox, zoom = 8)
 
 water_uganda %>%
   count(water_source, sort = TRUE)
 
+#Now we will lump our water sources together, and reorder.
+#CHECK OUT THIS SWEET FCT_REORDER TRICK, USING LENGTH!!
 water_uganda_lumped2 <- water_uganda %>%
   mutate(water_source = fct_lump(water_source, 5)) %>%
   replace_na(list(water_source = "Other")) %>%
-  view()
+  mutate(water_source = fct_reorder(water_source, water_source, length, .desc = TRUE))
 
+#Finally, we map geom points over the map we created, and facet wrap by source.
 ggmap(uganda_map) +
   geom_point(aes(lon, lat), 
              data = water_uganda_lumped2, size = 0.1, alpha = 0.1) +
   facet_wrap(~ water_source)
+```
+
+Let's take a quick look at a few more things before we finish.
+```{r}
+#We can easily isolate report year since we standardized the date format using lubridate earlier.
+water_uganda_lumped2 %>%
+  mutate(report_year = year(report_date)) %>%
+  count(report_year, water_source) %>%
+  complete(report_year, water_source, fill = list(n = 0)) %>%
+  ggplot(aes(report_year, n, fill = water_source)) +
+  geom_area() +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        text = element_text(family = "Times New Roman")) +
+  labs(x = "Report year",
+       y = "",
+       title = "Reported water sources in Uganda by year",
+       fill = "Water source") 
+
+
+#Instead of looking at totals, let's now look at distribution using group_by()
+water_uganda_lumped2 %>%
+  mutate(report_year = year(report_date)) %>%
+  count(report_year, water_source) %>%
+  complete(report_year, water_source, fill = list(n = 0)) %>%
+  group_by(report_year) %>%
+  mutate(year_total = sum(n)) %>%
+  filter(year_total >= 500) %>%
+  ggplot(aes(report_year, n/year_total, fill = water_source)) +
+  geom_area() +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        text = element_text(family = "Times New Roman")) +
+  labs(x = "Report year",
+       y = "",
+       title = "Reported water sources in Uganda by year",
+       fill = "Water source") 
+
+#Let's take a quick look at the water technology.
+water_uganda_lumped2 %>%
+  mutate(water_tech = fct_lump(water_tech, 5)) %>%
+  mutate(report_year = year(report_date)) %>%
+  count(report_year, water_tech) %>%
+  complete(report_year, water_tech, fill = list(n = 0)) %>%
+  group_by(report_year) %>%
+  mutate(year_total = sum(n)) %>%
+  filter(year_total >= 500) %>%
+  ggplot(aes(report_year, n, fill = water_tech)) +
+  geom_area() +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        text = element_text(family = "Times New Roman")) +
+  labs(x = "Report year",
+       y = "",
+       title = "Reported water source technology in Uganda by year",
+       fill = "Water tech") 
+```
+
+Let's take a final look at install year.
+```{r}
+water_uganda %>%
+  ggplot(aes(report_date, install_year)) +
+  geom_point() +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        text = element_text(family = "Times New Roman")) +
+  labs(x = "Report date",
+       y = "Installation year",
+       title = "Water source report date comparted to year of installation",
+       caption = "Many historical sources reported in 2010.") 
+```
+
+
+Plot twist:  We're making an animated map, using gganimate.
+```{r}
+ggmap(uganda_map) +
+  geom_point(aes(lon, lat, color = install_year), 
+             data = water_uganda %>%slice_sample(n = 10000), size = 0.2, alpha = 0.2) +
+  scale_color_gradient(low = "red",
+                       high = "brown",
+                       midpoint = 1990)
+
+water_uganda %>%
+  filter(!is.na(install_year)) %>%
+  mutate(install_year = pmax(1990, install_year)) %>%
+  slice_sample(n = 30000) %>%
+  mutate(year = map(install_year, ~seq(., 2021))) %>%
+  unnest(year) %>%
+  ggplot(aes(lon, lat)) + 
+  borders("world", regions = "Uganda") +
+  geom_point(size = 0.1, alpha = 0.25) +
+  theme_map() +
+  transition_manual(year) +
+  labs(title = "Water sources in Uganda in year: { current_frame }")
+
+#Let's see if we can do this over ggmap, now!
+
+point_data <- water_uganda %>%
+  filter(!is.na(install_year)) %>%
+  mutate(install_year = pmax(1990, install_year)) %>%
+  slice_sample(n = 50000) %>%
+  mutate(year = map(install_year, ~seq(., 2021))) %>%
+  unnest(year) 
+
+ggmap(uganda_map) +
+  geom_point(aes(lon, lat), data = point_data, size = 0.1, alpha = 0.25) +
+  transition_manual(year) +
+  labs(title = "Water sources in Uganda in year: { current_frame }")
+
 ```
 
